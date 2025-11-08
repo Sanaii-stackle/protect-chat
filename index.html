@@ -355,7 +355,7 @@
     <header>
       <div class="tag">Protect • Hack Rangers Secure Chat</div>
       <h1>Encryptic — Ranger Secure Line</h1>
-      <p>Open this page in two windows. Each Ranger uses their own window; messages are encrypted on send and decrypted on receive.</p>
+      <p>Open this page in two windows or devices. Messages are encrypted on send and decrypted on receive.</p>
       <div class="banner">
         <span>🔐</span>
         <span>
@@ -390,7 +390,7 @@
       <section class="panel">
         <h2><span id="panelTitle">Ranger Nova — Your Chat</span></h2>
         <div class="subtitle">
-          This window is your side of the line. Type below to send encrypted messages to your peer window.
+          This window is your side of the line. Type below to send encrypted messages.
         </div>
 
         <div id="chatLog" class="chat-log"></div>
@@ -419,7 +419,7 @@
       <section class="panel">
         <h2>Encrypted Wire &amp; Explain</h2>
         <div class="subtitle">
-          See ciphertext traveling over the wire, watch your encryption steps, and verify decryption integrity for incoming messages.
+          See ciphertext traveling over the wire, watch your encryption steps, and verify decryption integrity.
         </div>
 
         <div id="wireLog" class="wire-log"></div>
@@ -429,7 +429,7 @@
           <div id="explainContent">
             <p style="margin:0;color:#9ca3af;font-size:0.78rem;">
               Send a message to watch it turn from plaintext → checksum → payload → XOR → Base64 ciphertext.
-              When a message arrives from your peer, this panel updates with the decryption integrity result.
+              When a message arrives from another Ranger, this panel updates with the decryption integrity result.
             </p>
           </div>
         </div>
@@ -440,339 +440,357 @@
       </section>
     </div>
   </div>
+
+  <!-- 🔥 Firebase + encrypted chat logic -->
   <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-  import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+    import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
 
-  // 🔥 Your Firebase config (same as console, plus databaseURL)
-  const firebaseConfig = {
-    apiKey: "AIzaSyDHdnA_2mXeHVYy7cuG-KxJxr7b5PlD_gQ",
-    authDomain: "protect-chat-70bf6.firebaseapp.com",
-    databaseURL: "https://protect-chat-70bf6-default-rtdb.firebaseio.com",
-    projectId: "protect-chat-70bf6",
-    storageBucket: "protect-chat-70bf6.firebasestorage.app",
-    messagingSenderId: "387058720511",
-    appId: "1:387058720511:web:c9c8548324d30527aeb6ca"
-  };
-
-  // 1) Firebase init
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-
-  // Everyone shares this room/channel
-  const ROOM_ID = "hack-rangers-demo";
-  const messagesRef = ref(db, "rooms/" + ROOM_ID + "/messages");
-
-  // ========= ENCRYPTION DEMO HELPERS =========
-  let lastExplain = null;
-  let lastLocalCipher = null;
-
-  function getKeyBytes(key) {
-    if (!key) key = "DEFAULT-KEY";
-    const bytes = [];
-    for (let i = 0; i < key.length; i++) {
-      bytes.push(key.charCodeAt(i) & 0xff);
-    }
-    return bytes.length ? bytes : [0x42];
-  }
-
-  function checksum(text) {
-    let sum = 0;
-    for (let i = 0; i < text.length; i++) {
-      sum = (sum + text.charCodeAt(i)) % 1000;
-    }
-    return sum;
-  }
-
-  function encryptMessage(plain, key) {
-    const keyBytes = getKeyBytes(key);
-    const cs = checksum(plain);
-    const payload = plain + "::" + String(cs).padStart(3, "0");
-
-    let xored = "";
-    const hexBytes = [];
-    for (let i = 0; i < payload.length; i++) {
-      const k = keyBytes[i % keyBytes.length];
-      const c = payload.charCodeAt(i);
-      const xorVal = c ^ k;
-      xored += String.fromCharCode(xorVal);
-      if (i < 16) {
-        hexBytes.push(xorVal.toString(16).padStart(2, "0"));
-      }
-    }
-    const cipher = btoa(xored);
-
-    lastExplain = {
-      plain,
-      checksum: cs,
-      payload,
-      xorPreview: hexBytes.join(" "),
-      cipher,
-      integrity: null
+    // Your Firebase config (from console, plus databaseURL)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDHdnA_2mXeHVYy7cuG-KxJxr7b5PlD_gQ",
+      authDomain: "protect-chat-70bf6.firebaseapp.com",
+      databaseURL: "https://protect-chat-70bf6-default-rtdb.firebaseio.com",
+      projectId: "protect-chat-70bf6",
+      storageBucket: "protect-chat-70bf6.firebasestorage.app",
+      messagingSenderId: "387058720511",
+      appId: "1:387058720511:web:c9c8548324d30527aeb6ca"
     };
-    updateExplainPanel();
 
-    return cipher;
-  }
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-  function decryptMessage(cipher, key) {
-    const keyBytes = getKeyBytes(key);
-    try {
-      const xored = atob(cipher);
-      let payload = "";
-      for (let i = 0; i < xored.length; i++) {
-        const k = keyBytes[i % keyBytes.length];
-        const c = xored.charCodeAt(i);
-        payload += String.fromCharCode(c ^ k);
+    // One shared room for the demo
+    const ROOM_ID = "hack-rangers-demo";
+    const messagesRef = ref(db, "rooms/" + ROOM_ID + "/messages");
+
+    // ====== Demo crypto (educational only) ======
+    let lastExplain = null;
+    let lastLocalCipher = null;
+
+    function getKeyBytes(key) {
+      if (!key) key = "DEFAULT-KEY";
+      const bytes = [];
+      for (let i = 0; i < key.length; i++) {
+        bytes.push(key.charCodeAt(i) & 0xff);
       }
-      const sep = payload.lastIndexOf("::");
-      if (sep === -1) {
+      return bytes.length ? bytes : [0x42];
+    }
+
+    function checksum(text) {
+      let sum = 0;
+      for (let i = 0; i < text.length; i++) {
+        sum = (sum + text.charCodeAt(i)) % 1000;
+      }
+      return sum;
+    }
+
+    function encryptMessage(plain, key) {
+      const keyBytes = getKeyBytes(key);
+      const cs = checksum(plain);
+      const payload = plain + "::" + String(cs).padStart(3, "0");
+
+      let xored = "";
+      const hexBytes = [];
+      for (let i = 0; i < payload.length; i++) {
+        const k = keyBytes[i % keyBytes.length];
+        const c = payload.charCodeAt(i);
+        const xorVal = c ^ k;
+        xored += String.fromCharCode(xorVal);
+        if (i < 16) {
+          hexBytes.push(xorVal.toString(16).padStart(2, "0"));
+        }
+      }
+      const cipher = btoa(xored);
+
+      lastExplain = {
+        plain,
+        checksum: cs,
+        payload,
+        xorPreview: hexBytes.join(" "),
+        cipher,
+        integrity: null
+      };
+      updateExplainPanel();
+
+      return cipher;
+    }
+
+    function decryptMessage(cipher, key) {
+      const keyBytes = getKeyBytes(key);
+      try {
+        const xored = atob(cipher);
+        let payload = "";
+        for (let i = 0; i < xored.length; i++) {
+          const k = keyBytes[i % keyBytes.length];
+          const c = xored.charCodeAt(i);
+          payload += String.fromCharCode(c ^ k);
+        }
+        const sep = payload.lastIndexOf("::");
+        if (sep === -1) {
+          if (lastExplain && lastExplain.cipher === cipher) {
+            lastExplain.integrity = { ok:false, tampered:true };
+            updateExplainPanel();
+          }
+          return { ok: false, plain: "[no checksum delimiter]", tampered: true };
+        }
+        const text = payload.slice(0, sep);
+        const csStr = payload.slice(sep + 2);
+        const expected = parseInt(csStr, 10);
+        const actual = checksum(text);
+        const tampered = isNaN(expected) || expected !== actual;
+
+        if (lastExplain && lastExplain.cipher === cipher) {
+          lastExplain.integrity = { ok: !tampered, tampered };
+          updateExplainPanel();
+        }
+
+        if (tampered) return { ok: true, plain: text, tampered: true };
+        return { ok: true, plain: text, tampered: false };
+      } catch (e) {
         if (lastExplain && lastExplain.cipher === cipher) {
           lastExplain.integrity = { ok:false, tampered:true };
           updateExplainPanel();
         }
-        return { ok: false, plain: "[no checksum delimiter]", tampered: true };
+        return { ok: false, plain: "[unable to decode]", tampered: true };
       }
-      const text = payload.slice(0, sep);
-      const csStr = payload.slice(sep + 2);
-      const expected = parseInt(csStr, 10);
-      const actual = checksum(text);
-      const tampered = isNaN(expected) || expected !== actual;
+    }
 
-      if (lastExplain && lastExplain.cipher === cipher) {
-        lastExplain.integrity = { ok: !tampered, tampered };
-        updateExplainPanel();
+    function updateExplainPanel() {
+      const container = document.getElementById("explainContent");
+      if (!lastExplain) {
+        container.innerHTML =
+          '<p style="margin:0;color:#9ca3af;font-size:0.78rem;">Send a message to watch it turn from plaintext → checksum → payload → XOR → Base64 ciphertext. When a message arrives from another Ranger, this panel updates with the decryption integrity result.</p>';
+        return;
       }
-
-      if (tampered) return { ok: true, plain: text, tampered: true };
-      return { ok: true, plain: text, tampered: false };
-    } catch (e) {
-      if (lastExplain && lastExplain.cipher === cipher) {
-        lastExplain.integrity = { ok:false, tampered:true };
-        updateExplainPanel();
-      }
-      return { ok: false, plain: "[unable to decode]", tampered: true };
-    }
-  }
-
-  function updateExplainPanel() {
-    const container = document.getElementById("explainContent");
-    if (!container) return;
-    if (!lastExplain) {
-      container.innerHTML =
-        '<p style="margin:0;color:#9ca3af;font-size:0.78rem;">Send a message to watch it turn from plaintext → checksum → payload → XOR → Base64 ciphertext. When messages arrive from other Rangers, this panel updates with the decryption integrity result.</p>';
-      return;
-    }
-    const integ = lastExplain.integrity;
-    const integText = integ
-      ? (integ.ok && !integ.tampered
-          ? "Decryption integrity: OK"
-          : "Decryption integrity: FAILED")
-      : "Decryption integrity: (not yet checked)";
-    container.innerHTML = `
-      <pre><strong>Plaintext:</strong> ${lastExplain.plain}</pre>
-      <pre><strong>Checksum:</strong> ${lastExplain.checksum}</pre>
-      <pre><strong>Payload (text::checksum):</strong> ${lastExplain.payload}</pre>
-      <pre><strong>XOR bytes (first 16):</strong> ${lastExplain.xorPreview}</pre>
-      <pre><strong>Base64 ciphertext:</strong> ${lastExplain.cipher}</pre>
-      <pre><strong>${integText}</strong></pre>
-    `;
-  }
-
-  // ========= DOM + STATE =========
-  const state = {
-    myName: "Nova",
-    myColor: "#ff4b6a",
-    privacyOn: false
-  };
-
-  const myNameInput  = document.getElementById("myNameInput");
-  const myColorInput = document.getElementById("myColorInput");
-  const keyInput     = document.getElementById("keyInput");
-  const randomKeyBtn = document.getElementById("randomKeyBtn");
-  const privacyBtn   = document.getElementById("privacyBtn");
-
-  const panelTitle = document.getElementById("panelTitle");
-  const chatLog    = document.getElementById("chatLog");
-  const chatForm   = document.getElementById("chatForm");
-  const chatInput  = document.getElementById("chatInput");
-  const wireLog    = document.getElementById("wireLog");
-  const auditLog   = document.getElementById("auditLog");
-
-  const sensSelect = document.getElementById("sensSelect");
-  const ttlSelect  = document.getElementById("ttlSelect");
-
-  function logEvent(msg) {
-    if (!auditLog) return;
-    const line = document.createElement("div");
-    line.className = "audit-entry";
-    const ts = new Date().toLocaleTimeString();
-    line.textContent = `[${ts}] ${msg}`;
-    auditLog.appendChild(line);
-    auditLog.scrollTop = auditLog.scrollHeight;
-  }
-
-  function updateTitle() {
-    if (panelTitle) {
-      panelTitle.textContent = `Ranger ${state.myName} — Group Chat`;
-    }
-  }
-
-  function colorWithAlpha(hex, alphaHex) {
-    if (!hex || hex[0] !== "#" || (hex.length !== 7 && hex.length !== 9)) return hex;
-    if (hex.length === 9) return hex;
-    return hex + alphaHex;
-  }
-
-  function trustLabel(ok, tampered) {
-    if (!ok) return "0 (failed)";
-    if (tampered) return "50 (suspicious)";
-    return "100 (high)";
-  }
-
-  function appendChatMessage(text, fromSelf, opts = {}) {
-    if (!chatLog) return;
-    const msg = document.createElement("div");
-    msg.className = "chat-msg" + (fromSelf ? " me" : "");
-    const bubble = document.createElement("div");
-    bubble.className = "bubble" + (fromSelf ? " me" : "");
-    bubble.textContent = text;
-
-    if (fromSelf) {
-      bubble.style.borderColor = state.myColor;
-      bubble.style.backgroundColor = colorWithAlpha(state.myColor, "33");
-      bubble.style.boxShadow = `0 0 0 1px ${colorWithAlpha(state.myColor, "55")}`;
+      const integ = lastExplain.integrity;
+      const integText = integ
+        ? (integ.ok && !integ.tampered
+            ? "Decryption integrity: OK"
+            : "Decryption integrity: FAILED")
+        : "Decryption integrity: (not yet checked)";
+      container.innerHTML = `
+        <pre><strong>Plaintext:</strong> ${lastExplain.plain}</pre>
+        <pre><strong>Checksum:</strong> ${lastExplain.checksum}</pre>
+        <pre><strong>Payload (text::checksum):</strong> ${lastExplain.payload}</pre>
+        <pre><strong>XOR bytes (first 16):</strong> ${lastExplain.xorPreview}</pre>
+        <pre><strong>Base64 ciphertext:</strong> ${lastExplain.cipher}</pre>
+        <pre><strong>${integText}</strong></pre>
+      `;
     }
 
-    const meta = document.createElement("div");
-    meta.className = "meta-line";
-    const who = fromSelf ? `${state.myName} (you)` : opts.fromName || "Ranger";
-    const sensitivity = opts.sensitivity || "Unclassified";
-    const integrityText = opts.integrityText || "";
-    const trust = opts.trust || "";
-    meta.textContent =
-      `[${sensitivity}] ${who}` +
-      (integrityText ? ` • ${integrityText}` : "") +
-      (trust ? ` • Trust ${trust}` : "");
-
-    msg.appendChild(bubble);
-    msg.appendChild(meta);
-    chatLog.appendChild(msg);
-    chatLog.scrollTop = chatLog.scrollHeight;
-
-    const ttl = opts.ttlSeconds || 0;
-    if (ttl > 0) {
-      setTimeout(() => {
-        bubble.classList.add("expired");
-        bubble.textContent = "Message expired — ciphertext only retained on the wire.";
-        meta.textContent = `[${sensitivity}] ${who} • Expired (local view)`;
-        logEvent(`Ephemeral message from ${who} expired after ${ttl}s.`);
-      }, ttl * 1000);
-    }
-  }
-
-  function appendWireEntry(directionText, cipher, intact, sensitivity) {
-    if (!wireLog) return;
-    const entry = document.createElement("div");
-    entry.className = "wire-entry";
-    const header = document.createElement("div");
-    header.className = "wire-header";
-    const span = document.createElement("span");
-    span.textContent = `${directionText} [${sensitivity || "Unclassified"}]`;
-    const pill = document.createElement("span");
-    pill.className = "pill " + (intact ? "pill-ok" : "pill-bad");
-    pill.textContent = intact ? "INTACT" : "TAMPERED?";
-    header.appendChild(span);
-    header.appendChild(pill);
-    const codeEl = document.createElement("code");
-    codeEl.textContent = cipher;
-    entry.appendChild(header);
-    entry.appendChild(codeEl);
-    wireLog.appendChild(entry);
-    wireLog.scrollTop = wireLog.scrollHeight;
-  }
-
-  // ========= SEND: write encrypted message to Firebase =========
-  async function handleSend() {
-    const text = chatInput.value.trim();
-    if (!text) return;
-    chatInput.value = "";
-
-    const key = keyInput.value || "HACK-RANGERS-RTX";
-    const sensitivity = sensSelect ? sensSelect.value : "Unclassified";
-    const ttlSeconds = ttlSelect ? (parseInt(ttlSelect.value, 10) || 0) : 0;
-
-    logEvent(`${state.myName} sending ${sensitivity} message (TTL ${ttlSeconds || 0}s).`);
-
-    appendChatMessage(text, true, {
-      sensitivity,
-      integrityText: "Sent (before encryption)",
-      ttlSeconds
-    });
-
-    const cipher = encryptMessage(text, key);
-    lastLocalCipher = cipher;
-
-    appendWireEntry(`${state.myName} → room`, cipher, true, sensitivity);
-
-    const msg = {
-      from: state.myName,
-      cipher,
-      sensitivity,
-      ttlSeconds,
-      sentAt: Date.now()
+    // ====== State ======
+    const state = {
+      myName: "Nova",
+      peerName: "Vega",
+      myColor: "#ff4b6a",
+      privacyOn: false
     };
 
-    try {
-      await push(messagesRef, msg);
-    } catch (e) {
-      logEvent("Failed to write message to Firebase.");
+    // ====== DOM ======
+    const myNameInput = document.getElementById("myNameInput");
+    const peerNameInput = document.getElementById("peerNameInput");
+    const myColorInput = document.getElementById("myColorInput");
+    const keyInput = document.getElementById("keyInput");
+    const randomKeyBtn = document.getElementById("randomKeyBtn");
+    const privacyBtn = document.getElementById("privacyBtn");
+
+    const panelTitle = document.getElementById("panelTitle");
+    const chatLog = document.getElementById("chatLog");
+    const chatForm = document.getElementById("chatForm");
+    const chatInput = document.getElementById("chatInput");
+    const wireLog = document.getElementById("wireLog");
+    const auditLog = document.getElementById("auditLog");
+
+    const sensSelect = document.getElementById("sensSelect");
+    const ttlSelect = document.getElementById("ttlSelect");
+
+    // ====== Helpers ======
+    function logEvent(msg) {
+      const line = document.createElement("div");
+      line.className = "audit-entry";
+      const ts = new Date().toLocaleTimeString();
+      line.textContent = `[${ts}] ${msg}`;
+      auditLog.appendChild(line);
+      auditLog.scrollTop = auditLog.scrollHeight;
     }
-  }
 
-  // ========= RECEIVE: listen for new messages from Firebase =========
-  onChildAdded(messagesRef, (snapshot) => {
-    const data = snapshot.val();
-    if (!data) return;
-
-    // Don't re-show our own last message we already rendered
-    if (data.from === state.myName && data.cipher === lastLocalCipher) {
-      return;
+    function updateTitle() {
+      panelTitle.textContent = `Ranger ${state.myName} — Your Chat`;
     }
 
-    appendWireEntry(`${data.from} → room`, data.cipher, true, data.sensitivity);
+    function colorWithAlpha(hex, alphaHex) {
+      if (!hex || hex[0] !== "#" || (hex.length !== 7 && hex.length !== 9)) return hex;
+      if (hex.length === 9) return hex;
+      return hex + alphaHex;
+    }
 
-    const key = keyInput.value || "HACK-RANGERS-RTX";
-    const result = decryptMessage(data.cipher, key);
-    const tLabel = trustLabel(result.ok, result.tampered);
-    const intText = result.ok && !result.tampered
-      ? "Decrypted • Integrity OK"
-      : "Decrypted • Integrity FAILED";
+    function trustLabel(ok, tampered) {
+      if (!ok) return "0 (failed)";
+      if (tampered) return "50 (suspicious)";
+      return "100 (high)";
+    }
 
-    const shownText = result.ok ? result.plain : result.plain;
+    function appendChatMessage(text, fromSelf, opts = {}) {
+      const msg = document.createElement("div");
+      msg.className = "chat-msg" + (fromSelf ? " me" : "");
+      const bubble = document.createElement("div");
+      bubble.className = "bubble" + (fromSelf ? " me" : "");
+      bubble.textContent = text;
 
-    appendChatMessage(shownText, false, {
-      fromName: data.from,
-      sensitivity: data.sensitivity,
-      ttlSeconds: data.ttlSeconds,
-      integrityText: intText,
-      trust: tLabel
+      if (fromSelf) {
+        bubble.style.borderColor = state.myColor;
+        bubble.style.backgroundColor = colorWithAlpha(state.myColor, "33");
+        bubble.style.boxShadow = `0 0 0 1px ${colorWithAlpha(state.myColor, "55")}`;
+      }
+
+      const meta = document.createElement("div");
+      meta.className = "meta-line";
+      const who = fromSelf
+        ? `${state.myName} (you)`
+        : (opts.fromName || state.peerName || "Peer");
+      const sensitivity = opts.sensitivity || "Unclassified";
+      const integrityText = opts.integrityText || "";
+      const trust = opts.trust || "";
+      meta.textContent =
+        `[${sensitivity}] ${who}` +
+        (integrityText ? ` • ${integrityText}` : "") +
+        (trust ? ` • Trust ${trust}` : "");
+
+      msg.appendChild(bubble);
+      msg.appendChild(meta);
+      chatLog.appendChild(msg);
+      chatLog.scrollTop = chatLog.scrollHeight;
+
+      const ttl = opts.ttlSeconds || 0;
+      if (ttl > 0) {
+        setTimeout(() => {
+          bubble.classList.add("expired");
+          bubble.textContent = "Message expired — ciphertext only retained on the wire.";
+          meta.textContent =
+            `[${sensitivity}] ${who} • Expired (local view)`;
+          logEvent(`Ephemeral message from ${who} expired after ${ttl}s.`);
+        }, ttl * 1000);
+      }
+    }
+
+    function appendWireEntry(directionText, cipher, intact, sensitivity) {
+      const entry = document.createElement("div");
+      entry.className = "wire-entry";
+      const header = document.createElement("div");
+      header.className = "wire-header";
+      const span = document.createElement("span");
+      span.textContent = `${directionText} [${sensitivity || "Unclassified"}]`;
+      const pill = document.createElement("span");
+      pill.className = "pill " + (intact ? "pill-ok" : "pill-bad");
+      pill.textContent = intact ? "INTACT" : "TAMPERED?";
+      header.appendChild(span);
+      header.appendChild(pill);
+      const codeEl = document.createElement("code");
+      codeEl.textContent = cipher;
+      entry.appendChild(header);
+      entry.appendChild(codeEl);
+      wireLog.appendChild(entry);
+      wireLog.scrollTop = wireLog.scrollHeight;
+    }
+
+    // ====== Sending (write encrypted message to Firebase) ======
+    async function handleSend() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+      chatInput.value = "";
+
+      const key = keyInput.value || "HACK-RANGERS-RTX";
+      const sensitivity = sensSelect.value;
+      const ttlSeconds = parseInt(ttlSelect.value, 10) || 0;
+
+      logEvent(`${state.myName} sending ${sensitivity} message (TTL ${ttlSeconds || 0}s).`);
+
+      // Local plaintext view
+      appendChatMessage(text, true, {
+        sensitivity,
+        integrityText: "Sent (before encryption)",
+        ttlSeconds
+      });
+
+      // Encrypt (updates pipeline so sender can watch)
+      const cipher = encryptMessage(text, key);
+      lastLocalCipher = cipher;
+
+      // Ciphertext on wire
+      appendWireEntry(
+        `${state.myName} → ${state.peerName || "Room"}`,
+        cipher,
+        true,
+        sensitivity
+      );
+
+      // Store ciphertext in Firebase
+      const msg = {
+        from: state.myName,
+        cipher,
+        sensitivity,
+        ttlSeconds,
+        sentAt: Date.now()
+      };
+
+      try {
+        await push(messagesRef, msg);
+        logEvent("Message written to Firebase.");
+      } catch (e) {
+        console.error("Firebase push error", e);
+        logEvent("❌ Failed to write message to Firebase.");
+      }
+    }
+
+    // ====== Receiving (listen for new messages from Firebase) ======
+    onChildAdded(messagesRef, (snapshot) => {
+      const data = snapshot.val();
+      if (!data) return;
+
+      logEvent(`onChildAdded fired for message from ${data.from}.`);
+
+      // Don't re-render our own last message
+      if (data.from === state.myName && data.cipher === lastLocalCipher) {
+        logEvent("Skipped local echo of last message.");
+        return;
+      }
+
+      appendWireEntry(
+        `${data.from} → ${state.myName}`,
+        data.cipher,
+        true,
+        data.sensitivity
+      );
+
+      const key = keyInput.value || "HACK-RANGERS-RTX";
+      const result = decryptMessage(data.cipher, key);
+      const tLabel = trustLabel(result.ok, result.tampered);
+      const intText = result.ok && !result.tampered
+        ? "Decrypted • Integrity OK"
+        : "Decrypted • Integrity FAILED";
+
+      const shownText = result.ok ? result.plain : result.plain;
+
+      appendChatMessage(shownText, false, {
+        fromName: data.from,
+        sensitivity: data.sensitivity,
+        ttlSeconds: data.ttlSeconds,
+        integrityText: intText,
+        trust: tLabel
+      });
+
+      logEvent(
+        `${state.myName} saw message from ${data.from} (integrity ${result.tampered ? "FAILED" : "OK"}, trust ${tLabel}).`
+      );
     });
 
-    logEvent(
-      `${state.myName} saw message from ${data.from} (integrity ${result.tampered ? "FAILED" : "OK"}, trust ${tLabel}).`
-    );
-  });
-
-  // ========= UI EVENTS =========
-  if (chatForm) {
+    // ====== Events ======
     chatForm.addEventListener("submit", (e) => {
       e.preventDefault();
       handleSend();
     });
-  }
 
-  if (randomKeyBtn) {
     randomKeyBtn.addEventListener("click", () => {
       const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       let k = "RANGER-";
@@ -780,52 +798,48 @@
         k += chars[Math.floor(Math.random() * chars.length)];
       }
       keyInput.value = k;
-      logEvent(`Key randomized to ${k}. All Rangers must update to read new messages.`);
+      logEvent(`Key randomized to ${k}. All Rangers must use the same key to read new messages.`);
     });
-  }
 
-  if (myNameInput) {
     myNameInput.addEventListener("input", () => {
       state.myName = myNameInput.value || "Nova";
       updateTitle();
       logEvent(`Local ranger name set to ${state.myName}.`);
     });
-  }
 
-  if (myColorInput) {
+    peerNameInput.addEventListener("input", () => {
+      state.peerName = peerNameInput.value || "Vega";
+      logEvent(`Peer ranger name set to ${state.peerName}.`);
+    });
+
     myColorInput.addEventListener("input", () => {
       state.myColor = myColorInput.value || "#ff4b6a";
     });
-  }
 
-  if (keyInput) {
     keyInput.addEventListener("change", () => {
       logEvent("Shared key changed manually.");
     });
-  }
 
-  if (privacyBtn) {
     privacyBtn.addEventListener("click", () => {
       state.privacyOn = !state.privacyOn;
       document.body.classList.toggle("privacy-on", state.privacyOn);
       privacyBtn.textContent = state.privacyOn ? "Privacy mode: On" : "Privacy mode: Off";
       logEvent(`Privacy mode ${state.privacyOn ? "enabled" : "disabled"} by user.`);
     });
-  }
 
-  window.addEventListener("blur", () => {
-    if (!state.privacyOn) {
-      state.privacyOn = true;
-      document.body.classList.add("privacy-on");
-      if (privacyBtn) privacyBtn.textContent = "Privacy mode: On";
-      logEvent("Window blurred; privacy mode auto-enabled.");
-    }
-  });
+    // Auto privacy when window loses focus
+    window.addEventListener("blur", () => {
+      if (!state.privacyOn) {
+        state.privacyOn = true;
+        document.body.classList.add("privacy-on");
+        privacyBtn.textContent = "Privacy mode: On";
+        logEvent("Window blurred; privacy mode auto-enabled.");
+      }
+    });
 
-  // Init
-  updateTitle();
-  logEvent("Protect Chat loaded. Open this page on another device, set the same key, and start chatting.");
-</script>
-
-
-  
+    // ====== Init ======
+    updateTitle();
+    logEvent("✅ Protect Firebase chat loaded. Open this page on another device, use the same key, and start chatting.");
+  </script>
+</body>
+</html>
