@@ -1,0 +1,31 @@
+type User @table {
+  email: String!
+  createdAt: Timestamp!
+  displayName: String
+}
+
+type Website @table {
+  url: String!
+  createdAt: Timestamp!
+  lastAnalyzedAt: Timestamp!
+  title: String
+  description: String
+}
+
+type AnalysisReport @table {
+  user: User!
+  website: Website!
+  analysisDate: Timestamp!
+  mobileFriendlinessScore: Int!
+  issuesDetected: [String!]!
+  recommendations: String
+  screenshotUrl: String
+}
+
+type Issue @table {
+  analysisReport: AnalysisReport!
+  issueType: String!
+  description: String!
+  severity: String
+  suggestedFix: String
+}
