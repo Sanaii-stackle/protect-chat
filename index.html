@@ -1,239 +1,814 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Encrypted Ranger Chat Demo</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Protect — Hack Rangers Secure Chat</title>
   <style>
-    :root {
-      --bg-color: #f5f5f5;
-      --text-color: #111;
-      --card-bg: #ffffff;
-      --accent-color: #444;
-      --input-bg: #ffffff;
-      --input-border: #ccc;
-      --my-bubble-bg: #eeeeee;
+    :root{
+      --bg:#050814;
+      --card:#0b111d;
+      --card-soft:#111827;
+      --accent:#ff0033;
+      --accent-soft:#ff4b6a;
+      --muted:#9ca3af;
+      --good:#22c55e;
+      --bad:#f97316;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background:
+        radial-gradient(circle at top left, #1f2937 0, transparent 55%),
+        radial-gradient(circle at bottom right, #111827 0, transparent 55%),
+        linear-gradient(180deg,#020617 0%, #020617 100%);
+      color:#e5e7eb;
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      padding:24px;
+    }
+    .wrap{width:100%;max-width:1120px;}
+
+    header{text-align:center;margin-bottom:18px}
+    header h1{
+      margin:6px 0;
+      font-size:1.7rem;
+      color:#f9fafb;
+      letter-spacing:0.04em;
+    }
+    header p{
+      margin:4px 0;
+      color:var(--muted);
+      font-size:0.9rem;
+    }
+    .tag{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:4px 10px;
+      border-radius:999px;
+      background:rgba(248,113,113,0.08);
+      color:var(--accent-soft);
+      font-size:0.75rem;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+    }
+    .banner{
+      margin-top:10px;
+      display:inline-flex;
+      align-items:flex-start;
+      gap:8px;
+      padding:8px 12px;
+      border-radius:10px;
+      background:rgba(15,23,42,0.85);
+      border:1px dashed rgba(148,163,184,0.7);
+      font-size:0.8rem;
+      max-width:780px;
+      text-align:left;
+      color:#e5e7eb;
     }
 
-    /* RED RANGER THEME */
-    body[data-ranger="red"] {
-      --bg-color: #1f0004;
-      --text-color: #ffecec;
-      --card-bg: #2b0008;
-      --accent-color: #ff4d4d;
-      --input-bg: #3b0509;
-      --input-border: #ff8080;
-      --my-bubble-bg: #4d1015;
+    .controls{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      justify-content:center;
+      margin:10px 0;
+      align-items:center;
+      font-size:0.85rem;
+    }
+    .controls-label{
+      font-size:0.78rem;
+      color:#9ca3af;
+      text-transform:uppercase;
+      letter-spacing:0.06em;
+    }
+    .text-input{
+      padding:6px 9px;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,0.7);
+      background:#020617;
+      color:#e5e7eb;
+      font-size:0.8rem;
+      min-width:150px;
+    }
+    .key-input{
+      padding:6px 9px;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,0.7);
+      background:#020617;
+      color:#e5e7eb;
+      min-width:220px;
+      font-size:0.8rem;
+    }
+    .color-input{
+      width:32px;
+      height:32px;
+      border-radius:50%;
+      border:1px solid rgba(148,163,184,0.7);
+      background:#020617;
+      padding:0;
+      cursor:pointer;
     }
 
-    /* BLUE RANGER THEME */
-    body[data-ranger="blue"] {
-      --bg-color: #001523;
-      --text-color: #e2f1ff;
-      --card-bg: #001f33;
-      --accent-color: #4da3ff;
-      --input-bg: #04263f;
-      --input-border: #7bbdff;
-      --my-bubble-bg: #083458;
+    .btn{
+      background:var(--accent);
+      color:#f9fafb;
+      border:none;
+      padding:8px 12px;
+      border-radius:999px;
+      cursor:pointer;
+      font-weight:600;
+      font-size:0.85rem;
+      box-shadow:0 8px 22px rgba(239,68,68,0.35);
+      border:1px solid rgba(248,113,113,0.4);
+      transition:0.18s ease;
+    }
+    .btn.secondary{
+      background:#020617;
+      color:var(--accent-soft);
+      box-shadow:none;
+      border:1px solid rgba(148,163,184,0.6);
+    }
+    .btn:hover{
+      transform:translateY(-1px);
+      box-shadow:0 10px 26px rgba(248,113,113,0.5);
+    }
+    .btn.secondary:hover{
+      background:#020617;
+      box-shadow:0 6px 18px rgba(15,23,42,0.8);
     }
 
-    /* GREEN RANGER THEME */
-    body[data-ranger="green"] {
-      --bg-color: #001b10;
-      --text-color: #e1ffed;
-      --card-bg: #00251a;
-      --accent-color: #27e38a;
-      --input-bg: #003323;
-      --input-border: #68f5b1;
-      --my-bubble-bg: #004430;
+    .grid{
+      display:grid;
+      grid-template-columns:1.1fr 1fr;
+      gap:14px;
     }
 
-    /* YELLOW RANGER THEME */
-    body[data-ranger="yellow"] {
-      --bg-color: #231a00;
-      --text-color: #fff9d9;
-      --card-bg: #302400;
-      --accent-color: #ffd54d;
-      --input-bg: #3f2f00;
-      --input-border: #ffe47f;
-      --my-bubble-bg: #574000;
+    .panel{
+      background:var(--card);
+      border-radius:16px;
+      padding:12px;
+      box-shadow:0 16px 32px rgba(0,0,0,0.9);
+      border:1px solid rgba(31,41,55,0.8);
+      display:flex;
+      flex-direction:column;
+      min-height:380px;
+    }
+    .panel h2{
+      margin:0 0 6px 0;
+      font-size:0.95rem;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:#e5e7eb;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .subtitle{
+      font-size:0.75rem;
+      color:var(--muted);
+      margin-bottom:8px;
     }
 
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      padding: 20px;
-      margin: 0;
-      background: var(--bg-color);
-      color: var(--text-color);
+    .chat-log{
+      flex:1;
+      overflow-y:auto;
+      border-radius:10px;
+      background:radial-gradient(circle at top left,#020617 0,#020617 40%,#020617 100%);
+      padding:8px;
+      font-size:0.82rem;
+    }
+    .chat-msg{
+      margin-bottom:8px;
+      max-width:95%;
+    }
+    .chat-msg.me{
+      text-align:right;
+      margin-left:auto;
+    }
+    .bubble{
+      display:inline-block;
+      padding:6px 9px;
+      border-radius:12px;
+      background:#111827;
+      border:1px solid rgba(55,65,81,0.9);
+    }
+    .bubble.me{
+      /* sender color set inline */
+    }
+    .bubble.expired{
+      background:#020617;
+      border-style:dashed;
+      color:#9ca3af;
+      font-style:italic;
+    }
+    .meta-line{
+      font-size:10px;
+      color:#6b7280;
+      margin-top:2px;
     }
 
-    h2 {
-      margin-top: 0;
-      color: var(--accent-color);
+    .chat-options-row{
+      margin-top:6px;
+      display:flex;
+      gap:6px;
+      justify-content:flex-end;
+      font-size:0.75rem;
+      color:#9ca3af;
+    }
+    .mini-select{
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid rgba(55,65,81,0.9);
+      background:#020617;
+      color:#e5e7eb;
+      font-size:0.75rem;
     }
 
-    #config {
-      display: flex;
-      gap: 20px;
-      margin-bottom: 10px;
-      flex-wrap: wrap;
+    .chat-input-row{
+      margin-top:6px;
+      display:flex;
+      gap:6px;
+    }
+    .chat-input{
+      flex:1;
+      padding:7px 9px;
+      border-radius:999px;
+      border:1px solid rgba(55,65,81,0.9);
+      background:#020617;
+      color:#e5e7eb;
+      font-size:0.85rem;
     }
 
-    label {
-      display: block;
-      font-size: 0.9rem;
-      margin-bottom: 4px;
+    .wire-log{
+      flex:1;
+      overflow-y:auto;
+      border-radius:10px;
+      background:#020617;
+      padding:8px;
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:0.78rem;
+    }
+    .wire-entry{
+      margin-bottom:6px;
+      padding:6px 7px;
+      border-radius:8px;
+      background:#020617;
+      border:1px solid rgba(31,41,55,0.9);
+    }
+    .wire-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      font-size:10px;
+      color:#9ca3af;
+      margin-bottom:4px;
+    }
+    code{
+      color:#e5e7eb;
+      word-break:break-all;
     }
 
-    input, select {
-      padding: 5px 8px;
-      border-radius: 4px;
-      border: 1px solid var(--input-border);
-      background: var(--input-bg);
-      color: var(--text-color);
+    .pill{
+      display:inline-block;
+      padding:2px 6px;
+      border-radius:999px;
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+    }
+    .pill-ok{
+      background:rgba(34,197,94,0.15);
+      color:#bbf7d0;
+      border:1px solid rgba(34,197,94,0.8);
+    }
+    .pill-bad{
+      background:rgba(249,115,22,0.16);
+      color:#fed7aa;
+      border:1px solid rgba(249,115,22,0.9);
     }
 
-    input::placeholder {
-      color: #999;
+    .explain-panel{
+      margin-top:10px;
+      padding:8px;
+      border-radius:12px;
+      background:rgba(15,23,42,0.9);
+      border:1px solid rgba(31,41,55,0.9);
+      font-size:0.78rem;
+    }
+    .explain-panel h3{
+      margin:0 0 4px 0;
+      font-size:0.8rem;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:#e5e7eb;
+    }
+    .explain-panel pre{
+      margin:3px 0;
+      white-space:pre-wrap;
+      word-break:break-all;
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-size:0.75rem;
+      color:#e5e7eb;
     }
 
-    #chat {
-      border: 1px solid var(--accent-color);
-      border-radius: 8px;
-      padding: 10px;
-      height: 300px;
-      overflow-y: auto;
-      background: var(--card-bg);
+    .audit-log{
+      margin-top:8px;
+      padding:8px;
+      border-radius:12px;
+      background:#020617;
+      border:1px solid rgba(31,41,55,0.9);
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-size:0.78rem;
+      max-height:140px;
+      overflow-y:auto;
+    }
+    .audit-log h3{
+      margin:0 0 4px 0;
+      font-size:0.8rem;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:#e5e7eb;
+    }
+    .audit-entry{
+      margin-bottom:2px;
+      color:#9ca3af;
     }
 
-    .msg {
-      margin-bottom: 8px;
-      padding: 6px 8px;
-      border-radius: 6px;
-      background: #00000020;
+    /* Privacy blur: only affects plaintext chat bubbles */
+    .privacy-on .chat-log .bubble{
+      filter:blur(6px);
     }
 
-    .msg.me {
-      background: var(--my-bubble-bg);
-    }
-
-    .msg-header {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 2px;
-      font-size: 0.9rem;
-    }
-
-    .ranger-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      border: 1px solid #ffffff40;
-    }
-
-    .ranger-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: currentColor;
-    }
-
-    /* Ranger colors for pills/bubbles */
-    .msg[data-ranger="red"] .ranger-pill { color: #ff8080; border-color: #ff808080; }
-    .msg[data-ranger="blue"] .ranger-pill { color: #7bbdff; border-color: #7bbdff80; }
-    .msg[data-ranger="green"] .ranger-pill { color: #68f5b1; border-color: #68f5b180; }
-    .msg[data-ranger="yellow"] .ranger-pill { color: #ffe47f; border-color: #ffe47f80; }
-
-    .plain {
-      font-weight: bold;
-      display: block;
-      margin-bottom: 2px;
-    }
-
-    .cipher {
-      font-family: monospace;
-      font-size: 0.75rem;
-      opacity: 0.8;
-      word-wrap: break-word;
-    }
-
-    #inputRow {
-      display: flex;
-      gap: 10px;
-      margin-top: 10px;
-    }
-
-    #message {
-      flex: 1;
-      padding: 5px 8px;
-      border-radius: 4px;
-      border: 1px solid var(--input-border);
-      background: var(--input-bg);
-      color: var(--text-color);
-    }
-
-    #sendBtn {
-      padding: 6px 14px;
-      border-radius: 4px;
-      border: 1px solid var(--accent-color);
-      background: var(--accent-color);
-      color: #000;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    #sendBtn:hover {
-      filter: brightness(1.1);
+    @media (max-width:980px){
+      .grid{
+        grid-template-columns:1fr;
+      }
     }
   </style>
 </head>
-<body data-ranger="red">
-  <h2>Protect: Encrypted Ranger Chat</h2>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="tag">Protect • Hack Rangers Secure Chat</div>
+      <h1>Encryptic — Ranger Secure Line</h1>
+      <p>Open this page in two windows. Each Ranger uses their own window; messages are encrypted on send and decrypted on receive.</p>
+      <div class="banner">
+        <span>🔐</span>
+        <span>
+          Demo-only crypto: this is a custom educational scheme, not real production encryption.
+          It shows how shared keys, encryption, integrity checks, and expiry protect Ranger comms.
+        </span>
+      </div>
+    </header>
 
-  <div id="config">
-    <div>
-      <label>
-        Name:
-        <input type="text" id="username" placeholder="Red Ranger" />
-      </label>
+    <!-- Identity + color -->
+    <div class="controls">
+      <span class="controls-label">Your Ranger name</span>
+      <input id="myNameInput" class="text-input" value="Nova" />
+
+      <span class="controls-label">Peer name</span>
+      <input id="peerNameInput" class="text-input" value="Vega" />
+
+      <span class="controls-label">Your color</span>
+      <input id="myColorInput" class="color-input" type="color" value="#ff4b6a" />
     </div>
-    <div>
-      <label>
-        Shared Key:
-        <input type="text" id="key" placeholder="HACKRANGERS" />
-      </label>
+
+    <!-- Key + privacy -->
+    <div class="controls">
+      <span class="controls-label">Shared secret key</span>
+      <input id="keyInput" class="key-input" value="HACK-RANGERS-RTX" />
+      <button class="btn secondary" id="randomKeyBtn">Randomize key</button>
+      <button class="btn secondary" id="privacyBtn">Privacy mode: Off</button>
     </div>
-    <div>
-      <label>
-        Choose Your Ranger:
-        <select id="ranger">
-          <option value="red">Red Ranger</option>
-          <option value="blue">Blue Ranger</option>
-          <option value="green">Green Ranger</option>
-          <option value="yellow">Yellow Ranger</option>
-        </select>
-      </label>
+
+    <div class="grid">
+      <!-- Left: your chat -->
+      <section class="panel">
+        <h2><span id="panelTitle">Ranger Nova — Your Chat</span></h2>
+        <div class="subtitle">
+          This window is your side of the line. Type below to send encrypted messages to your peer window.
+        </div>
+
+        <div id="chatLog" class="chat-log"></div>
+
+        <div class="chat-options-row">
+          <select id="sensSelect" class="mini-select">
+            <option value="Unclassified">Unclassified</option>
+            <option value="Secret">Secret</option>
+            <option value="Top Secret">Top Secret</option>
+          </select>
+          <select id="ttlSelect" class="mini-select">
+            <option value="0">No expiry</option>
+            <option value="10">Expire in 10s</option>
+            <option value="30">Expire in 30s</option>
+            <option value="60">Expire in 60s</option>
+          </select>
+        </div>
+
+        <form id="chatForm" class="chat-input-row">
+          <input id="chatInput" class="chat-input" placeholder="Type a secure message…" />
+          <button class="btn" type="submit">Send</button>
+        </form>
+      </section>
+
+      <!-- Right: wire + explain + audit -->
+      <section class="panel">
+        <h2>Encrypted Wire &amp; Explain</h2>
+        <div class="subtitle">
+          See ciphertext traveling over the wire, watch your encryption steps, and verify decryption integrity for incoming messages.
+        </div>
+
+        <div id="wireLog" class="wire-log"></div>
+
+        <div id="explainPanel" class="explain-panel">
+          <h3>Encryption / Decryption Pipeline</h3>
+          <div id="explainContent">
+            <p style="margin:0;color:#9ca3af;font-size:0.78rem;">
+              Send a message to watch it turn from plaintext → checksum → payload → XOR → Base64 ciphertext.
+              When a message arrives from your peer, this panel updates with the decryption integrity result.
+            </p>
+          </div>
+        </div>
+
+        <div id="auditLog" class="audit-log">
+          <h3>Security / Audit Log</h3>
+        </div>
+      </section>
     </div>
   </div>
 
-  <div id="chat"></div>
+  <script>
+    // ====== Demo crypto (educational only) ======
+    let lastExplain = null;
 
-  <div id="inputRow">
-    <input type="text" id="message" placeholder="Type an encrypted ranger message..." />
-    <button id="sendBtn">Send</button>
-  </div>
+    function getKeyBytes(key) {
+      if (!key) key = "DEFAULT-KEY";
+      const bytes = [];
+      for (let i = 0; i < key.length; i++) {
+        bytes.push(key.charCodeAt(i) & 0xff);
+      }
+      return bytes.length ? bytes : [0x42];
+    }
 
-  <!-- Socket.io client script -->
-  <script src="/socket.io/socket.io.js"></script>
-  <!-- Your chat logic -->
-  <script src="chat.js"></script>
+    function checksum(text) {
+      let sum = 0;
+      for (let i = 0; i < text.length; i++) {
+        sum = (sum + text.charCodeAt(i)) % 1000;
+      }
+      return sum;
+    }
+
+    function encryptMessage(plain, key) {
+      const keyBytes = getKeyBytes(key);
+      const cs = checksum(plain);
+      const payload = plain + "::" + String(cs).padStart(3, "0");
+
+      let xored = "";
+      const hexBytes = [];
+      for (let i = 0; i < payload.length; i++) {
+        const k = keyBytes[i % keyBytes.length];
+        const c = payload.charCodeAt(i);
+        const xorVal = c ^ k;
+        xored += String.fromCharCode(xorVal);
+        if (i < 16) {
+          hexBytes.push(xorVal.toString(16).padStart(2, "0"));
+        }
+      }
+      const cipher = btoa(xored);
+
+      lastExplain = {
+        plain,
+        checksum: cs,
+        payload,
+        xorPreview: hexBytes.join(" "),
+        cipher,
+        integrity: null
+      };
+      updateExplainPanel();
+
+      return cipher;
+    }
+
+    function decryptMessage(cipher, key) {
+      const keyBytes = getKeyBytes(key);
+      try {
+        const xored = atob(cipher);
+        let payload = "";
+        for (let i = 0; i < xored.length; i++) {
+          const k = keyBytes[i % keyBytes.length];
+          const c = xored.charCodeAt(i);
+          payload += String.fromCharCode(c ^ k);
+        }
+        const sep = payload.lastIndexOf("::");
+        if (sep === -1) {
+          if (lastExplain && lastExplain.cipher === cipher) {
+            lastExplain.integrity = { ok:false, tampered:true };
+            updateExplainPanel();
+          }
+          return { ok: false, plain: "[no checksum delimiter]", tampered: true };
+        }
+        const text = payload.slice(0, sep);
+        const csStr = payload.slice(sep + 2);
+        const expected = parseInt(csStr, 10);
+        const actual = checksum(text);
+        const tampered = isNaN(expected) || expected !== actual;
+
+        if (lastExplain && lastExplain.cipher === cipher) {
+          lastExplain.integrity = { ok: !tampered, tampered };
+          updateExplainPanel();
+        }
+
+        if (tampered) return { ok: true, plain: text, tampered: true };
+        return { ok: true, plain: text, tampered: false };
+      } catch (e) {
+        if (lastExplain && lastExplain.cipher === cipher) {
+          lastExplain.integrity = { ok:false, tampered:true };
+          updateExplainPanel();
+        }
+        return { ok: false, plain: "[unable to decode]", tampered: true };
+      }
+    }
+
+    function updateExplainPanel() {
+      const container = document.getElementById("explainContent");
+      if (!lastExplain) {
+        container.innerHTML =
+          '<p style="margin:0;color:#9ca3af;font-size:0.78rem;">Send a message to watch it turn from plaintext → checksum → payload → XOR → Base64 ciphertext. When a message arrives from your peer, this panel updates with the decryption integrity result.</p>';
+        return;
+      }
+      const integ = lastExplain.integrity;
+      const integText = integ
+        ? (integ.ok && !integ.tampered
+            ? "Decryption integrity: OK"
+            : "Decryption integrity: FAILED")
+        : "Decryption integrity: (not yet checked)";
+      container.innerHTML = `
+        <pre><strong>Plaintext:</strong> ${lastExplain.plain}</pre>
+        <pre><strong>Checksum:</strong> ${lastExplain.checksum}</pre>
+        <pre><strong>Payload (text::checksum):</strong> ${lastExplain.payload}</pre>
+        <pre><strong>XOR bytes (first 16):</strong> ${lastExplain.xorPreview}</pre>
+        <pre><strong>Base64 ciphertext:</strong> ${lastExplain.cipher}</pre>
+        <pre><strong>${integText}</strong></pre>
+      `;
+    }
+
+    // ====== State ======
+    const state = {
+      myName: "Nova",
+      peerName: "Vega",
+      myColor: "#ff4b6a",
+      privacyOn: false
+    };
+
+    // ====== DOM ======
+    const myNameInput = document.getElementById("myNameInput");
+    const peerNameInput = document.getElementById("peerNameInput");
+    const myColorInput = document.getElementById("myColorInput");
+    const keyInput = document.getElementById("keyInput");
+    const randomKeyBtn = document.getElementById("randomKeyBtn");
+    const privacyBtn = document.getElementById("privacyBtn");
+
+    const panelTitle = document.getElementById("panelTitle");
+    const chatLog = document.getElementById("chatLog");
+    const chatForm = document.getElementById("chatForm");
+    const chatInput = document.getElementById("chatInput");
+    const wireLog = document.getElementById("wireLog");
+    const auditLog = document.getElementById("auditLog");
+
+    const sensSelect = document.getElementById("sensSelect");
+    const ttlSelect = document.getElementById("ttlSelect");
+
+    // ====== BroadcastChannel (two-window link) ======
+    let channel = null;
+    if ("BroadcastChannel" in window) {
+      channel = new BroadcastChannel("hack-rangers-protect");
+    }
+
+    // ====== Helpers ======
+    function logEvent(msg) {
+      const line = document.createElement("div");
+      line.className = "audit-entry";
+      const ts = new Date().toLocaleTimeString();
+      line.textContent = `[${ts}] ${msg}`;
+      auditLog.appendChild(line);
+      auditLog.scrollTop = auditLog.scrollHeight;
+    }
+
+    function updateTitle() {
+      panelTitle.textContent = `Ranger ${state.myName} — Your Chat`;
+    }
+
+    function colorWithAlpha(hex, alphaHex) {
+      if (!hex || hex[0] !== "#" || (hex.length !== 7 && hex.length !== 9)) return hex;
+      if (hex.length === 9) return hex;
+      return hex + alphaHex;
+    }
+
+    function trustLabel(ok, tampered) {
+      if (!ok) return "0 (failed)";
+      if (tampered) return "50 (suspicious)";
+      return "100 (high)";
+    }
+
+    function appendChatMessage(text, fromSelf, opts = {}) {
+      const msg = document.createElement("div");
+      msg.className = "chat-msg" + (fromSelf ? " me" : "");
+      const bubble = document.createElement("div");
+      bubble.className = "bubble" + (fromSelf ? " me" : "");
+      bubble.textContent = text;
+
+      if (fromSelf) {
+        bubble.style.borderColor = state.myColor;
+        bubble.style.backgroundColor = colorWithAlpha(state.myColor, "33");
+        bubble.style.boxShadow = `0 0 0 1px ${colorWithAlpha(state.myColor, "55")}`;
+      }
+
+      const meta = document.createElement("div");
+      meta.className = "meta-line";
+      const who = fromSelf ? `${state.myName} (you)` : state.peerName;
+      const sensitivity = opts.sensitivity || "Unclassified";
+      const integrityText = opts.integrityText || "";
+      const trust = opts.trust || "";
+      meta.textContent =
+        `[${sensitivity}] ` +
+        who +
+        (integrityText ? ` • ${integrityText}` : "") +
+        (trust ? ` • Trust ${trust}` : "");
+
+      msg.appendChild(bubble);
+      msg.appendChild(meta);
+      chatLog.appendChild(msg);
+      chatLog.scrollTop = chatLog.scrollHeight;
+
+      const ttl = opts.ttlSeconds || 0;
+      if (ttl > 0) {
+        setTimeout(() => {
+          bubble.classList.add("expired");
+          bubble.textContent = "Message expired — ciphertext only retained on the wire.";
+          meta.textContent =
+            `[${sensitivity}] ` +
+            who +
+            " • Expired (local view)";
+          logEvent(`Ephemeral message from ${who} expired after ${ttl}s.`);
+        }, ttl * 1000);
+      }
+    }
+
+    function appendWireEntry(directionText, cipher, intact, sensitivity) {
+      const entry = document.createElement("div");
+      entry.className = "wire-entry";
+      const header = document.createElement("div");
+      header.className = "wire-header";
+      const span = document.createElement("span");
+      span.textContent = `${directionText} [${sensitivity || "Unclassified"}]`;
+      const pill = document.createElement("span");
+      pill.className = "pill " + (intact ? "pill-ok" : "pill-bad");
+      pill.textContent = intact ? "INTACT" : "TAMPERED?";
+      header.appendChild(span);
+      header.appendChild(pill);
+      const codeEl = document.createElement("code");
+      codeEl.textContent = cipher;
+      entry.appendChild(header);
+      entry.appendChild(codeEl);
+      wireLog.appendChild(entry);
+      wireLog.scrollTop = wireLog.scrollHeight;
+    }
+
+    // ====== Sending ======
+    function handleSend() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+      chatInput.value = "";
+
+      const key = keyInput.value || "HACK-RANGERS-RTX";
+      const sensitivity = sensSelect.value;
+      const ttlSeconds = parseInt(ttlSelect.value, 10) || 0;
+
+      logEvent(`${state.myName} sending ${sensitivity} message to ${state.peerName} (TTL ${ttlSeconds || 0}s).`);
+
+      // Local plaintext view
+      appendChatMessage(text, true, {
+        sensitivity,
+        integrityText: "Sent (before encryption)",
+        ttlSeconds
+      });
+
+      // Encrypt (updates pipeline so sender can watch)
+      const cipher = encryptMessage(text, key);
+
+      // Ciphertext on wire
+      appendWireEntry(`${state.myName} → ${state.peerName}`, cipher, true, sensitivity);
+
+      // Broadcast to other window
+      if (channel) {
+        channel.postMessage({
+          type: "cipher",
+          from: state.myName,
+          to: state.peerName,
+          cipher,
+          sensitivity,
+          ttlSeconds
+        });
+      } else {
+        logEvent("BroadcastChannel not supported; messages stay local.");
+      }
+    }
+
+    // ====== Receiving ======
+    if (channel) {
+      channel.onmessage = (event) => {
+        const data = event.data;
+        if (!data || data.type !== "cipher") return;
+
+        // Ignore our own messages (we already handled the local view)
+        if (data.from === state.myName) return;
+
+        // Show ciphertext on wire
+        appendWireEntry(`${data.from} → ${state.myName}`, data.cipher, true, data.sensitivity);
+
+        const key = keyInput.value || "HACK-RANGERS-RTX";
+        const result = decryptMessage(data.cipher, key);
+        const tLabel = trustLabel(result.ok, result.tampered);
+        const intText = result.ok && !result.tampered
+          ? "Decrypted • Integrity OK"
+          : "Decrypted • Integrity FAILED";
+        const shownText = result.ok ? result.plain : result.plain;
+
+        // Show plaintext on receiver side
+        appendChatMessage(shownText, false, {
+          sensitivity: data.sensitivity,
+          ttlSeconds: data.ttlSeconds,
+          integrityText: intText,
+          trust: tLabel
+        });
+
+        logEvent(
+          `${state.myName} received message from ${data.from} (integrity ${result.tampered ? "FAILED" : "OK"}, trust ${tLabel}).`
+        );
+      };
+    } else {
+      logEvent("BroadcastChannel API not supported in this browser.");
+    }
+
+    // ====== Events ======
+    chatForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      handleSend();
+    });
+
+    randomKeyBtn.addEventListener("click", () => {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let k = "RANGER-";
+      for (let i = 0; i < 8; i++) {
+        k += chars[Math.floor(Math.random() * chars.length)];
+      }
+      keyInput.value = k;
+      logEvent(`Key randomized to ${k}.`);
+    });
+
+    myNameInput.addEventListener("input", () => {
+      state.myName = myNameInput.value || "Nova";
+      updateTitle();
+      logEvent(`Local ranger name set to ${state.myName}.`);
+    });
+
+    peerNameInput.addEventListener("input", () => {
+      state.peerName = peerNameInput.value || "Vega";
+      logEvent(`Peer ranger name set to ${state.peerName}.`);
+    });
+
+    myColorInput.addEventListener("input", () => {
+      state.myColor = myColorInput.value || "#ff4b6a";
+    });
+
+    keyInput.addEventListener("change", () => {
+      logEvent("Shared key changed manually.");
+    });
+
+    privacyBtn.addEventListener("click", () => {
+      state.privacyOn = !state.privacyOn;
+      document.body.classList.toggle("privacy-on", state.privacyOn);
+      privacyBtn.textContent = state.privacyOn ? "Privacy mode: On" : "Privacy mode: Off";
+      logEvent(`Privacy mode ${state.privacyOn ? "enabled" : "disabled"} by user.`);
+    });
+
+    // Auto privacy when window loses focus
+    window.addEventListener("blur", () => {
+      if (!state.privacyOn) {
+        state.privacyOn = true;
+        document.body.classList.add("privacy-on");
+        privacyBtn.textContent = "Privacy mode: On";
+        logEvent("Window blurred; privacy mode auto-enabled.");
+      }
+    });
+
+    // ====== Init ======
+    updateTitle();
+    logEvent("Protect two-window chat loaded. Open this file in a second window for your peer.");
+  </script>
 </body>
 </html>
